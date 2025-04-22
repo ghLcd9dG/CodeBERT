@@ -57,7 +57,7 @@ We fine-tuned the model on 2*V100-16G GPUs.
 ```shell
 HF_ENDPOINT=https://hf-mirror.com/
 CUDA_VISIBLE_DEVICES=7
-lang=ruby
+lang=python
 mkdir -p ./saved_models/$lang
 python run.py \
     --output_dir=./saved_models/$lang \

@@ -226,7 +226,7 @@ class TextDataset(Dataset):
     def __getitem__(self, item):
         # calculate graph-guided masked function
         attn_mask = np.zeros((self.args.code_length+self.args.data_flow_length,
-                              self.args.code_length+self.args.data_flow_length), dtype=np.bool)
+                              self.args.code_length+self.args.data_flow_length), dtype=bool)
         # calculate begin index of node and max length of input
         node_index = sum([i > 1 for i in self.examples[item].position_idx])
         max_length = sum([i != 1 for i in self.examples[item].position_idx])
@@ -305,16 +305,20 @@ def train(args, model, tokenizer, pool):
             code_vec = model(code_inputs=code_inputs,
                              attn_mask=attn_mask, position_idx=position_idx)
             nl_vec = model(nl_inputs=nl_inputs)
+            print(f"code_vec: {code_vec}")
+            print(f"nl_vec: {nl_vec}")
 
             # calculate scores and loss
             scores = torch.einsum("ab,cb->ac", nl_vec, code_vec)
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(scores, torch.arange(
                 code_inputs.size(0), device=scores.device))
-
+            print(f"scores: {scores}")
+            print(f"calculate loss: {loss.item()}")
             # report loss
             tr_loss += loss.item()
             tr_num += 1
+            print(f"current epoch: {idx}, step: {step}, loss: {tr_loss/tr_num}")
             if (step+1) % 100 == 0:
                 logger.info("epoch {} step {} loss {}".format(
                     idx, step+1, round(tr_loss/tr_num, 5)))
