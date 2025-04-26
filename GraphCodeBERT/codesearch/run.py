@@ -289,11 +289,10 @@ def train(args, model, tokenizer, pool):
     logger.info("  Total optimization steps = %d", len(
         train_dataloader)*args.num_train_epochs)
 
-    # model.resize_token_embeddings(len(tokenizer))
     model.zero_grad()
-
     model.train()
     tr_num, tr_loss, best_mrr = 0, 0, 0
+
     for idx in range(args.num_train_epochs):
         for step, batch in enumerate(train_dataloader):
             # get inputs
@@ -301,27 +300,44 @@ def train(args, model, tokenizer, pool):
             attn_mask = batch[1].to(args.device)
             position_idx = batch[2].to(args.device)
             nl_inputs = batch[3].to(args.device)
+
+            print(f"Step {step}: code_inputs.shape = {code_inputs.shape}")
+            print(f"Step {step}: attn_mask.shape = {attn_mask.shape}")
+            print(f"Step {step}: position_idx.shape = {position_idx.shape}")
+            print(f"Step {step}: nl_inputs.shape = {nl_inputs.shape}")
+
             # get code and nl vectors
             code_vec = model(code_inputs=code_inputs,
                              attn_mask=attn_mask, position_idx=position_idx)
             nl_vec = model(nl_inputs=nl_inputs)
-            print(f"code_vec: {code_vec}")
-            print(f"nl_vec: {nl_vec}")
+
+            print(f"Step {step}: code_vec.shape = {code_vec.shape}")
+            print(f"Step {step}: nl_vec.shape = {nl_vec.shape}")
 
             # calculate scores and loss
             scores = torch.einsum("ab,cb->ac", nl_vec, code_vec)
+            print(f"Step {step}: scores.shape = {scores.shape}")
+            print(f"Step {step}: scores = {scores}")
+
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(scores, torch.arange(
-                code_inputs.size(0), device=scores.device))
-            print(f"scores: {scores}")
-            print(f"calculate loss: {loss.item()}")
+            try:
+                loss = loss_fct(scores, torch.arange(
+                    code_inputs.size(0), device=scores.device))
+                print(f"Step {step}: loss = {loss.item()}")
+            except Exception as e:
+                print(f"Step {step}: Error calculating loss: {e}")
+                print(f"Step {step}: scores = {scores}")
+                print(f"Step {step}: target = {torch.arange(code_inputs.size(0), device=scores.device)}")
+                raise e
+
             # report loss
             tr_loss += loss.item()
             tr_num += 1
-            print(f"current epoch: {idx}, step: {step}, loss: {tr_loss/tr_num}")
-            if (step+1) % 100 == 0:
+            print(f"Step {step}: current average loss = {tr_loss / tr_num}")
+
+            if (step + 1) % 100 == 0:
                 logger.info("epoch {} step {} loss {}".format(
-                    idx, step+1, round(tr_loss/tr_num, 5)))
+                    idx, step + 1, round(tr_loss / tr_num, 5)))
                 tr_loss = 0
                 tr_num = 0
 
